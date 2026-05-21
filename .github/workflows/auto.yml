@@ -1,8 +1,8 @@
-name: Build XPTV List
+name: XPTV Auto Build
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */2 * * *"   # 每2小时
   workflow_dispatch:
 
 permissions:
@@ -13,24 +13,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      # 1️⃣ 拉取仓库
+      - name: Checkout repo
         uses: actions/checkout@v4
 
+      # 2️⃣ 下载原作者 sgmodule
+      - name: Download upstream sgmodule
+        run: |
+          curl -L -o xptv.sgmodule https://raw.githubusercontent.com/fangkuia/XPTV/main/X/xptv.sgmodule
+
+      # 3️⃣ 安装 Python（稳定版本）
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.10"
 
-      - name: Install requests
-        run: pip install requests
+      # 4️⃣ 执行转换脚本
+      - name: Build list
+        run: |
+          python convert.py
 
-      - name: Run convert
-        run: python convert.py
+      # 5️⃣ 检查是否有变化（关键）
+      - name: Check changes
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> $GITHUB_ENV
+          else
+            echo "changed=true" >> $GITHUB_ENV
+          fi
 
-      - name: Commit file
+      # 6️⃣ 提交更新（只有变化才执行）
+      - name: Commit & Push
+        if: env.changed == 'true'
         run: |
           git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.email "github-actions@github.com"
           git add XPTV.list
-          git commit -m "auto update XPTV.list" || echo "no changes"
+          git commit -m "auto: update XPTV list"
           git push
