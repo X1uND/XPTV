@@ -1,33 +1,29 @@
-import requests
+import re
 
-URL = "https://raw.githubusercontent.com/fangkuia/XPTV/main/X/xptv.sgmodule"
+input_file = "xptv.sgmodule"
+output_file = "XPTV.list"
 
-text = requests.get(URL).text
+rules = set()
 
-rules = []
-in_rule = False
+with open(input_file, "r", encoding="utf-8") as f:
+    for line in f:
+        line = line.strip()
 
-for line in text.splitlines():
-    line = line.strip()
+        # 只保留规则行
+        if line.startswith("DOMAIN,"):
+            rules.add(line)
+        elif line.startswith("DOMAIN-SUFFIX,"):
+            rules.add(line)
+        elif line.startswith("DOMAIN-KEYWORD,"):
+            rules.add(line)
+        elif line.startswith("IP-CIDR,"):
+            rules.add(line)
 
-    if line == "[Rule]":
-        in_rule = True
-        continue
+# 排序（稳定输出，避免无意义 diff）
+rules = sorted(rules)
 
-    if line.startswith("[") and line != "[Rule]":
-        in_rule = False
+with open(output_file, "w", encoding="utf-8") as f:
+    for r in rules:
+        f.write(r + "\n")
 
-    if in_rule and line and not line.startswith("#"):
-        # Surge rule format: DOMAIN,xxx,PROXY
-        parts = line.split(",")
-
-        if len(parts) >= 2:
-            rules.append(parts[0].strip() + "," + parts[1].strip())
-
-# 去重
-rules = sorted(set(rules))
-
-with open("XPTV.list", "w") as f:
-    f.write("\n".join(rules))
-
-print("done:", len(rules))
+print(f"Generated {len(rules)} rules")
